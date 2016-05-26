@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Random Movement with Multiple Movers</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+        
+        canvas {
+            background: radial-gradient(#94daff, #dbf3ff);
+            display: block;
+            margin: 0 auto;
+        }
+        h3 {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h3>AKA fishpond take 2.</h3>
+
+    <canvas id="myCanvas" width="480" height="320"></canvas>
+
+    <script>
+        var canvas = document.getElementById("myCanvas"),
+            ctx = canvas.getContext("2d"),
+            ripples = false,
+            fishSpeed = 1,
+            fishRadius = 10,
+            fishLongRadius = 15,
+            tailLength = 8,
+            tailWidth = 3,
+            maxSpeed = 2.5,
+            numberFish = 3,
+            // ivory and near-black are half as common as any given gold/orange color
+            colorOptions = ["#fdf9ed", "#0d0b02", "#fa9a00", "#fcd331", "#ff7e05", "#ffcd05", "#fa9a00", "#fcd331", "#ff7e05", "#ffcd05"],
+            fishArray = [];
+        for (var i = 0; i < numberFish; i++) {
+            fishArray[i] = {
+                x: ((canvas.width - (2 * fishLongRadius)) * Math.random()) + fishLongRadius,
+                y: ((canvas.height - (2 * fishLongRadius)) * Math.random()) + fishLongRadius,
+                dx: 0.2 * Math.random() - 0.1,
+                dy: 0.2 * Math.random() - 0.1,
+                color: colorOptions[Math.floor(colorOptions.length * Math.random())],
+                speed: fishSpeed,
+                xHead: this.x,
+                yHead: this.y,
+                move: function () {
+                    if (this.x + this.dx > canvas.width - fishLongRadius || this.x + this.dx < fishLongRadius) {
+                        this.dx = -this.dx;
+                    } else if (this.y + this.dy < fishLongRadius || this.y + this.dy > canvas.height - fishLongRadius) {
+                        this.dy = -this.dy;
+                    } else {
+                        switch (Math.floor(30 * Math.random()) + 1) {
+                                // .4 seems to be a good medium between dead and twitchy
+                                // though they are still pretty twitchy - need past data
+                        case 1:
+                            this.dy -= 0.4;
+                            break;
+                        case 2:
+                            this.dy += 0.4;
+                            break;
+                        case 3:
+                            this.dx -= 0.4;
+                            break;
+                        case 4:
+                            this.dx += 0.4;
+                            break;
+                        case 5:
+                            if (this.x > 0.9 * canvas.width) {
+                                this.dx -= 1;
+                            } else if (this.x < 0.1 * canvas.width) {
+                                this.dx += 1;
+                            }
+                            break;
+                        case 6:
+                            if (this.y > 0.9 * canvas.height) {
+                                this.dy -= 1;
+                            } else if (this.y < 0.1 * canvas.height) {
+                                this.dy += 1;
+                            }
+                            break;
+                        default:
+                            true;
+                        }
+                        switch (Math.floor(25 * Math.random()) + 1) {
+                        case 1:
+                        case 2:
+                        case 3:
+                            this.speed = 0.95 * this.speed + 0.05 * maxSpeed;
+                            break;
+                        case 4:
+                        case 5:
+                        case 6:
+                            this.speed = 0.95 * this.speed;
+                            break;
+                        case 7:
+                        case 8:
+                        case 9:
+                            if (this.speed < 0.1 * maxSpeed) {
+                                this.speed = 0.9 * this.speed + 0.1 * maxSpeed;
+                            } else if (this.speed > 0.9 * maxSpeed) {
+                                this.speed = 0.9 * this.speed;
+                            }
+                            break;
+                        case 10:
+                            this.speed = 0.7 * this.speed + 0.3 * maxSpeed;
+                            break;
+                        case 11:
+                            this.speed = 0.7 * this.speed;
+                            break;
+                        default:
+                            true;
+                        }
+                        if (this.dx != 0 && this.dy != 0) {
+                            var newDeltas = normalize(this.dx, this.dy);
+                            this.dx = this.speed * newDeltas[0];
+                            this.dy = this.speed * newDeltas[1];
+                        }
+                    }
+                    this.x += this.dx;
+                    this.y += this.dy;
+                },
+                draw: function () {
+                    // could likely be improved with .save()/.restore() and transformations
+                    var slope = this.dy / this.dx;
+                    var x1 = this.x + fishLongRadius * slopeCosine(slope);
+                    var x2 = this.x - fishLongRadius * slopeCosine(slope);
+                    var y1 = this.y + fishLongRadius * slopeSine(slope);
+                    var y2 = this.y - fishLongRadius * slopeSine(slope);
+                    this.xHead = x1;
+                    this.yHead = y1;
+                    var xTail = x2,
+                        yTail = y2;
+                    if (this.dx < 0) {
+                        this.xHead = x2;
+                        this.yHead = y2;
+                        xTail = x1;
+                        yTail = y1;
+                    }
+                    var recipSlope = -this.dx / this.dy;
+                    var x3 = this.x + fishRadius * slopeCosine(recipSlope);
+                    var x4 = this.x - fishRadius * slopeCosine(recipSlope);
+                    var y3 = this.y + fishRadius * slopeSine(recipSlope);
+                    var y4 = this.y - fishRadius * slopeSine(recipSlope);
+
+                    var x5 = xTail + ((xTail - this.x) / Math.abs(xTail - this.x)) * tailLength + tailWidth * slopeCosine(recipSlope);
+                    var y5 = yTail + ((yTail - this.y) / Math.abs(yTail - this.y)) * tailLength + tailWidth * slopeSine(recipSlope);
+                    var x6 = xTail + ((xTail - this.x) / Math.abs(xTail - this.x)) * tailLength - tailWidth * slopeCosine(recipSlope);
+                    var y6 = yTail + ((yTail - this.y) / Math.abs(yTail - this.y)) * tailLength - tailWidth * slopeSine(recipSlope);
+
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.quadraticCurveTo(x3, y3, x2, y2);
+                    ctx.quadraticCurveTo(x4, y4, x1, y1);
+                    ctx.fillStyle = this.color;
+                    ctx.strokeStyle = this.color;
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.closePath();
+                    ctx.beginPath();
+                    ctx.moveTo(xTail, yTail);
+                    ctx.lineTo(x5, y5);
+                    ctx.lineTo(x6, y6);
+                    ctx.fillStyle = this.color;
+                    ctx.strokeStyle = this.color;
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+            }
+        }
+
+        function slopeSine(slope) {
+            return slope / Math.sqrt(1 + slope * slope);
+        }
+
+        function slopeCosine(slope) {
+            return 1 / Math.sqrt(1 + slope * slope);
+        }
+
+        function normalize(deltaX, deltaY) {
+            var vectorLength = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            return [deltaX / vectorLength, deltaY / vectorLength];
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            var j = Math.floor(fishArray.length * Math.random());
+            for (var i = 0; i < numberFish; i++) {
+                fishArray[i].draw();
+                if ((ripples == false && i != j) || (ripples != false && i != ripples[3])) {
+                    fishArray[i].move();
+                }
+            }
+            if (ripples == false && Math.random() < 0.005) {
+                // somebody kissed the surface! That somebody stays still for 25 frames
+                ripples = [fishArray[j].xHead, fishArray[j].yHead, 1, j];
+            } else if (ripples[2] > 25) {
+                fishArray[ripples[3]].move();
+            } else {
+                fishArray[j].move();
+            }
+            if (ripples[2] < 100) {
+                ctx.beginPath();
+                ctx.strokeStyle = "rgba(255,255,255,0.4)";
+                ctx.arc(ripples[0], ripples[1], ripples[2] / 2, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.closePath();
+                if (ripples[2] > 25) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+                    ctx.arc(ripples[0], ripples[1], (ripples[2] - 25) / 2, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+                if (ripples[2] > 50) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+                    ctx.arc(ripples[0], ripples[1], (ripples[2] - 50) / 2, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+                ripples[2]++;
+            } else {
+                ripples = false;
+            }
+            requestAnimationFrame(draw);
+        }
+        draw();
+    </script>
+
+</body>
+
+</html>

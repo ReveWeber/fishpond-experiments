@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Following the Mouse Pointer</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+        
+        canvas {
+            background: #eee;
+            display: block;
+            margin: 0 auto;
+        }
+        h3 {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="myCanvas" width="480" height="320"></canvas>
+    
+    <h3>The ball bounces deterministically when your pointer is out of the canvas and is attracted to the pointer when it's in the canvas.</h3>
+
+    <script>
+        var canvas = document.getElementById("myCanvas");
+        var ctx = canvas.getContext("2d");
+        var x = canvas.width / 2,
+            y = canvas.height - 30,
+            dx = 2,
+            dy = -2,
+            ballRadius = 10,
+            relativeX = false,
+            relativeY = false;
+
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
+            ctx.fillStyle = "#0095DD";
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBall();
+            if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
+                dx = -dx;
+            }
+            if (y + dy < ballRadius || y + dy > canvas.height - ballRadius) {
+                dy = -dy;
+            }
+            if (relativeX && relativeY) {
+            // if the mouse is in the canvas and the ball is not close, get the ball to track it
+                if (x - relativeX > 20) { dx = -2; }
+                if (x - relativeX < -20) { dx = 2; }
+                if (y - relativeY > 20) { dy = -2; }
+                if (y - relativeY < -20) { dy = 2; }
+            }
+            x += dx;
+            y += dy;
+            requestAnimationFrame(draw);
+        }
+
+        function mouseMoveHandler(e) {
+            var mouseX = e.clientX - canvas.offsetLeft,
+                mouseY = e.clientY - canvas.offsetTop;
+            relativeX = false;
+            relativeY = false;
+            // note: x < y < z is not legal syntax
+            if (0 <= mouseX && mouseX <= canvas.width && 0 <= mouseY && mouseY <= canvas.height) {
+                relativeX = mouseX;
+                relativeY = mouseY;
+            }
+        }
+        document.addEventListener("mousemove", mouseMoveHandler, false);
+        
+        draw();
+    </script>
+
+</body>
+
+</html>
