@@ -3,13 +3,17 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>Random Movement with Multiple Movers</title>
+    <meta name="viewport" content="width=device-width">
+    <title>Multiple Movers, Random but Attracted to Mouse, Responsive</title>
     <style>
         * {
             padding: 0;
             margin: 0;
         }
-        
+        .container {
+            width: 100%;
+            height: 100%;
+        }
         canvas {
             background: radial-gradient(#94daff, #dbf3ff);
             display: block;
@@ -22,28 +26,50 @@
 </head>
 
 <body>
-    <h3>AKA fishpond take 2.</h3>
-
+    <div id="frontmatter">
+    <h3>AKA fishpond take 3.</h3>
+    </div>
+    <div class="container" id="container">
     <canvas id="myCanvas" width="480" height="320"></canvas>
+    </div>
 
     <script>
         var canvas = document.getElementById("myCanvas"),
-            ctx = canvas.getContext("2d"),
-            ripples = false,
+            container = document.getElementById("container"),
+            frontM = document.getElementById("frontmatter"),
+            scaledDown = false,
+            ctx = canvas.getContext("2d");
+        if (container.clientWidth < 480) {
+            canvas.width = container.clientWidth;
+            scaledDown = true;
+        }
+        if (container.clientHeight < 320 + frontM.clientHeight) {
+            canvas.height = container.clientHeight - frontM.clientHeight;
+            scaledDown = true;
+        }
+        var ripples = false,
             fishSpeed = 1,
             fishRadius = 10,
             fishLongRadius = 15,
             tailLength = 8,
             tailWidth = 3,
             maxSpeed = 2.5,
+            standardTurn = 0.4, // medium between dead and twitchy
             numberFish = 3,
             // ivory and near-black are half as common as any given gold/orange color
             colorOptions = ["#fdf9ed", "#0d0b02", "#fa9a00", "#fcd331", "#ff7e05", "#ffcd05", "#fa9a00", "#fcd331", "#ff7e05", "#ffcd05"],
-            fishArray = [];
+            fishArray = [],
+            relativeX = false,
+            relativeY = false;
+        if (scaledDown) {
+            fishSpeed = 0.8;
+            maxSpeed = 2;
+            standardTurn = 0.3;
+        }
         for (var i = 0; i < numberFish; i++) {
             fishArray[i] = {
-                x: ((canvas.width - (2 * fishLongRadius)) * Math.random()) + fishLongRadius,
-                y: ((canvas.height - (2 * fishLongRadius)) * Math.random()) + fishLongRadius,
+                x: ((canvas.clientWidth - (2 * fishLongRadius)) * Math.random()) + fishLongRadius,
+                y: ((canvas.clientHeight - (2 * fishLongRadius)) * Math.random()) + fishLongRadius,
                 dx: 0.2 * Math.random() - 0.1,
                 dy: 0.2 * Math.random() - 0.1,
                 color: colorOptions[Math.floor(colorOptions.length * Math.random())],
@@ -51,37 +77,36 @@
                 xHead: this.x,
                 yHead: this.y,
                 move: function () {
-                    if (this.x + this.dx > canvas.width - fishLongRadius || this.x + this.dx < fishLongRadius) {
+                    if (this.x + this.dx > canvas.clientWidth - fishLongRadius || this.x + this.dx < fishLongRadius) {
                         this.dx = -this.dx;
-                    } else if (this.y + this.dy < fishLongRadius || this.y + this.dy > canvas.height - fishLongRadius) {
+                    } else if (this.y + this.dy < fishLongRadius || this.y + this.dy > canvas.clientHeight - fishLongRadius) {
                         this.dy = -this.dy;
                     } else {
                         switch (Math.floor(30 * Math.random()) + 1) {
-                        // .4 seems to be a good medium between dead and twitchy
-                        // though they are still pretty twitchy - need past data
+                        // they are still pretty twitchy - need past data
                         case 1:
-                            this.dy -= 0.4;
+                            this.dy -= standardTurn;
                             break;
                         case 2:
-                            this.dy += 0.4;
+                            this.dy += standardTurn;
                             break;
                         case 3:
-                            this.dx -= 0.4;
+                            this.dx -= standardTurn;
                             break;
                         case 4:
-                            this.dx += 0.4;
+                            this.dx += standardTurn;
                             break;
                         case 5:
-                            if (this.x > 0.9 * canvas.width) {
+                            if (this.x > 0.9 * canvas.clientWidth) {
                                 this.dx -= 1;
-                            } else if (this.x < 0.1 * canvas.width) {
+                            } else if (this.x < 0.1 * canvas.clientWidth) {
                                 this.dx += 1;
                             }
                             break;
                         case 6:
-                            if (this.y > 0.9 * canvas.height) {
+                            if (this.y > 0.9 * canvas.clientHeight) {
                                 this.dy -= 1;
-                            } else if (this.y < 0.1 * canvas.height) {
+                            } else if (this.y < 0.1 * canvas.clientHeight) {
                                 this.dy += 1;
                             }
                             break;
@@ -113,6 +138,14 @@
                             break;
                         case 11:
                             this.speed = 0.7 * this.speed;
+                            break;
+                        case 12:
+                            if (relativeX && relativeY) {
+                                if (this.x - relativeX > 20) { this.dx -= standardTurn; }
+                                if (this.x - relativeX < -20) { this.dx += standardTurn; }
+                                if (this.y - relativeY > 20) { this.dy -= standardTurn; }
+                                if (this.y - relativeY < -20) { this.dy += standardTurn; }
+                            }
                             break;
                         default:
                             true;
@@ -175,6 +208,19 @@
                 }
             }
         }
+        
+        function mouseMoveHandler(e) {
+            var mouseX = e.clientX - canvas.offsetLeft,
+                mouseY = e.clientY - canvas.offsetTop;
+            relativeX = false;
+            relativeY = false;
+            // note: x < y < z is not legal syntax
+            if (0 <= mouseX && mouseX <= canvas.clientWidth && 0 <= mouseY && mouseY <= canvas.clientHeight) {
+                relativeX = mouseX;
+                relativeY = mouseY;
+            }
+        }
+        document.addEventListener("mousemove", mouseMoveHandler, false);
 
         function slopeSine(slope) {
             return slope / Math.sqrt(1 + slope * slope);
@@ -190,7 +236,7 @@
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
             var j = Math.floor(fishArray.length * Math.random());
             for (var i = 0; i < numberFish; i++) {
                 fishArray[i].draw();

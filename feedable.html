@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width">
+    <title>Feedable Fish</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+        
+        .container {
+            width: 100%;
+            height: 100%;
+        }
+        
+        canvas {
+            background: radial-gradient(#94daff, #dbf3ff);
+            display: block;
+            margin: 0 auto;
+        }
+        
+        h3 {
+            text-align: center;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div id="frontmatter">
+        <!--<h3>AKA fishpond take 3.</h3>-->
+        <h3>&nbsp;</h3>
+    </div>
+    <div class="container" id="container">
+        <canvas id="myCanvas" width="480" height="320"></canvas>
+    </div>
+
+    <script>
+        var canvas = document.getElementById("myCanvas"),
+            container = document.getElementById("container"),
+            frontM = document.getElementById("frontmatter"),
+            scaledDown = false,
+            ctx = canvas.getContext("2d");
+        if (container.clientWidth < 480) {
+            canvas.width = container.clientWidth;
+            scaledDown = true;
+        }
+        if (container.clientHeight < 320 + frontM.clientHeight) {
+            canvas.height = container.clientHeight - frontM.clientHeight;
+            scaledDown = true;
+        }
+        var ripples = false,
+            food = false,
+            foodSpeed = 0.1,
+            foodSize = 1,
+            foodColor = "rgba(100, 41, 7, 1)",
+            fishSpeed = 1,
+            fishRadius = 10,
+            fishLongRadius = 15,
+            tailLength = 8,
+            tailWidth = 3,
+            maxSpeed = 2.5,
+            standardTurn = 0.4, // medium between dead and twitchy
+            numberFish = 3,
+            // ivory and near-black are half as common as any given gold/orange color
+            colorOptions = ["#fdf9ed", "#0d0b02", "#fa9a00", "#fcd331", "#ff7e05", "#ffcd05", "#fa9a00", "#fcd331", "#ff7e05", "#ffcd05"],
+            fishArray = [],
+            relativeX = false,
+            relativeY = false;
+        if (scaledDown) {
+            fishSpeed = 0.8;
+            maxSpeed = 2;
+            standardTurn = 0.3;
+        }
+        for (var i = 0; i < numberFish; i++) {
+            fishArray[i] = {
+                x: ((canvas.clientWidth - (2 * fishLongRadius)) * Math.random()) + fishLongRadius,
+                y: ((canvas.clientHeight - (2 * fishLongRadius)) * Math.random()) + fishLongRadius,
+                dx: 0.2 * Math.random() - 0.1,
+                dy: 0.2 * Math.random() - 0.1,
+                color: colorOptions[Math.floor(colorOptions.length * Math.random())],
+                speed: fishSpeed,
+                xHead: this.x,
+                yHead: this.y,
+                move: function() {
+                    if (this.x + this.dx > canvas.clientWidth - fishLongRadius || this.x + this.dx < fishLongRadius) {
+                        this.dx = -this.dx;
+                    } else if (this.y + this.dy < fishLongRadius || this.y + this.dy > canvas.clientHeight - fishLongRadius) {
+                        this.dy = -this.dy;
+                    } else {
+                        switch (Math.floor(30 * Math.random()) + 1) {
+                            // they are still pretty twitchy - need past data
+                            // or maybe just a second derivative
+                            case 1:
+                                this.dy -= standardTurn;
+                                break;
+                            case 2:
+                                this.dy += standardTurn;
+                                break;
+                            case 3:
+                                this.dx -= standardTurn;
+                                break;
+                            case 4:
+                                this.dx += standardTurn;
+                                break;
+                            case 5:
+                                if (this.x > 0.9 * canvas.clientWidth) {
+                                    this.dx -= 1;
+                                } else if (this.x < 0.1 * canvas.clientWidth) {
+                                    this.dx += 1;
+                                }
+                                break;
+                            case 6:
+                                if (this.y > 0.9 * canvas.clientHeight) {
+                                    this.dy -= 1;
+                                } else if (this.y < 0.1 * canvas.clientHeight) {
+                                    this.dy += 1;
+                                }
+                                break;
+                            case 7:
+                                if (relativeX && relativeY) {
+                                    if (this.x - relativeX > 20) {
+                                        this.dx -= standardTurn;
+                                    }
+                                    if (this.x - relativeX < -20) {
+                                        this.dx += standardTurn;
+                                    }
+                                    if (this.y - relativeY > 20) {
+                                        this.dy -= standardTurn;
+                                    }
+                                    if (this.y - relativeY < -20) {
+                                        this.dy += standardTurn;
+                                    }
+                                }
+                                break;
+                            case 8:
+                            case 9:
+                            case 10:
+                                if (food) {
+                                    var foodDir = pathToNearestFood(this);
+                                    if (foodDir) {
+                                        if (Math.abs(foodDir[0] - this.dx) < 2 * standardTurn) {
+                                            this.dx = foodDir[0];
+                                        } else if (foodDir[0] < this.dx) {
+                                            this.dx -= 2 * standardTurn;
+                                        } else {
+                                            this.dx += 2 * standardTurn;
+                                        }
+                                        if (Math.abs(foodDir[1] - this.dy) < 2 * standardTurn) {
+                                            this.dy = foodDir[1];
+                                        } else if (foodDir[1] < this.dy) {
+                                            this.dy -= 2 * standardTurn;
+                                        } else {
+                                            this.dy += 2 * standardTurn;
+                                        }
+                                    }
+                                }
+                            default:
+                                true;
+                        }
+                        switch (Math.floor(25 * Math.random()) + 1) {
+                            case 1:
+                            case 2:
+                            case 3:
+                                this.speed = 0.95 * this.speed + 0.05 * maxSpeed;
+                                break;
+                            case 4:
+                            case 5:
+                            case 6:
+                                this.speed = 0.95 * this.speed;
+                                break;
+                            case 7:
+                            case 8:
+                            case 9:
+                                if (this.speed < 0.1 * maxSpeed) {
+                                    this.speed = 0.9 * this.speed + 0.1 * maxSpeed;
+                                } else if (this.speed > 0.9 * maxSpeed) {
+                                    this.speed = 0.9 * this.speed;
+                                }
+                                break;
+                            case 10:
+                                this.speed = 0.7 * this.speed + 0.3 * maxSpeed;
+                                break;
+                            case 11:
+                                this.speed = 0.7 * this.speed;
+                                break;
+                            default:
+                                true;
+                        }
+                        if (this.dx != 0 && this.dy != 0) {
+                            var newDeltas = normalize(this.dx, this.dy);
+                            this.dx = this.speed * newDeltas[0];
+                            this.dy = this.speed * newDeltas[1];
+                        }
+                    }
+                    this.x += this.dx;
+                    this.y += this.dy;
+                },
+                draw: function() {
+                    // could likely be improved with .save()/.restore() and transformations
+                    var slope = this.dy / this.dx;
+                    var x1 = this.x + fishLongRadius * slopeCosine(slope);
+                    var x2 = this.x - fishLongRadius * slopeCosine(slope);
+                    var y1 = this.y + fishLongRadius * slopeSine(slope);
+                    var y2 = this.y - fishLongRadius * slopeSine(slope);
+                    this.xHead = x1;
+                    this.yHead = y1;
+                    var xTail = x2,
+                        yTail = y2;
+                    if (this.dx < 0) {
+                        this.xHead = x2;
+                        this.yHead = y2;
+                        xTail = x1;
+                        yTail = y1;
+                    }
+                    var recipSlope = -this.dx / this.dy;
+                    var x3 = this.x + fishRadius * slopeCosine(recipSlope);
+                    var x4 = this.x - fishRadius * slopeCosine(recipSlope);
+                    var y3 = this.y + fishRadius * slopeSine(recipSlope);
+                    var y4 = this.y - fishRadius * slopeSine(recipSlope);
+
+                    var x5 = xTail + ((xTail - this.x) / Math.abs(xTail - this.x)) * tailLength + tailWidth * slopeCosine(recipSlope);
+                    var y5 = yTail + ((yTail - this.y) / Math.abs(yTail - this.y)) * tailLength + tailWidth * slopeSine(recipSlope);
+                    var x6 = xTail + ((xTail - this.x) / Math.abs(xTail - this.x)) * tailLength - tailWidth * slopeCosine(recipSlope);
+                    var y6 = yTail + ((yTail - this.y) / Math.abs(yTail - this.y)) * tailLength - tailWidth * slopeSine(recipSlope);
+                    var tailCtrX = (xTail + x5 + x6) / 3;
+                    var tailCtrY = (yTail + y5 + y6) / 3;
+
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.quadraticCurveTo(x3, y3, x2, y2);
+                    ctx.quadraticCurveTo(x4, y4, x1, y1);
+                    ctx.fillStyle = this.color;
+                    ctx.strokeStyle = this.color;
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.closePath();
+                    ctx.beginPath();
+                    ctx.moveTo(xTail, yTail);
+                    ctx.lineTo(x5, y5);
+                    ctx.quadraticCurveTo(tailCtrX, tailCtrY, x6, y6);
+                    ctx.fillStyle = this.color;
+                    ctx.strokeStyle = this.color;
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.closePath();
+                },
+                eat: function() {
+                    if (food.locOne && Math.abs(this.xHead - food.locOne[0]) < 2 && Math.abs(this.yHead - food.locOne[1]) < 2) {
+                        food.locOne = false;
+                    }
+                    if (food.locTwo && Math.abs(this.xHead - food.locTwo[0]) < 2 && Math.abs(this.yHead - food.locTwo[1]) < 2) {
+                        food.locTwo = false;
+                    }
+                    if (food.locThree && Math.abs(this.xHead - food.locThree[0]) < 2 && Math.abs(this.yHead - food.locThree[1]) < 2) {
+                        food.locThree = false;
+                    }
+                }
+            }
+        }
+
+        function slopeSine(slope) {
+            return slope / Math.sqrt(1 + slope * slope);
+        }
+
+        function slopeCosine(slope) {
+            return 1 / Math.sqrt(1 + slope * slope);
+        }
+
+        function normalize(deltaX, deltaY) {
+            var vectorLength = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            return [deltaX / vectorLength, deltaY / vectorLength];
+        }
+
+        /* returns normalized vector */
+        function pathToNearestFood(fish) {
+            var foodDir = false;
+            if (food) {
+                var candidate = null,
+                    distance = [canvas.clientWidth, canvas.clientHeight];
+                var maxDist = 0.5 * Math.max(canvas.clientHeight, canvas.clientWidth);
+                if (food.locOne && Math.abs(fish.x - food.locOne[0]) < maxDist && Math.abs(fish.y - food.locOne[1]) < maxDist) {
+                    candidate = food.locOne;
+                    distance = [Math.abs(fish.x - food.locOne[0]), Math.abs(fish.y - food.locOne[1])];
+                }
+                if (food.locTwo && Math.abs(fish.x - food.locTwo[0]) < Math.min(maxDist, distance[0]) && Math.abs(fish.y - food.locTwo[1]) < Math.min(maxDist, distance[1])) {
+                    candidate = food.locTwo;
+                    distance = [Math.abs(fish.x - food.locTwo[0]), Math.abs(fish.y - food.locTwo[1])];
+                }
+                if (food.locThree && Math.abs(fish.x - food.locThree[0]) < Math.min(maxDist, distance[0]) && Math.abs(fish.y - food.locThree[1]) < Math.min(maxDist, distance[1])) {
+                    candidate = food.locThree;
+                }
+                if (candidate) {
+                    foodDir = normalize(candidate[0] - fish.x, candidate[1] - fish.y);
+                }
+            }
+            return foodDir;
+        }
+
+        function mouseMoveHandler(e) {
+            var mouseX = e.clientX - canvas.offsetLeft,
+                mouseY = e.clientY - canvas.offsetTop;
+            relativeX = false;
+            relativeY = false;
+            // note: x < y < z is not legal syntax
+            if (0 <= mouseX && mouseX <= canvas.clientWidth && 0 <= mouseY && mouseY <= canvas.clientHeight) {
+                relativeX = mouseX;
+                relativeY = mouseY;
+            }
+        }
+        document.addEventListener("mousemove", mouseMoveHandler, false);
+
+        function mouseClickHandler(e) {
+            if (relativeX !== false && relativeY !== false && food === false) {
+                var signSetter = [Math.random(), Math.random(), Math.random(), Math.random(), Math.random(), Math.random()];
+                for (i = 0; i < signSetter.length; i++) {
+                    if (signSetter[i] < 0.5) {
+                        signSetter[i] = -1;
+                    } else {
+                        signSetter[i] = 1;
+                    }
+                }
+                food = {
+                    locOne: [relativeX, relativeY],
+                    dirOne: normalize(signSetter[0] * Math.random(), signSetter[1] * Math.random()),
+                    locTwo: [relativeX, relativeY],
+                    dirTwo: normalize(signSetter[2] * Math.random(), signSetter[3] * Math.random()),
+                    locThree: [relativeX, relativeY],
+                    dirThree: normalize(signSetter[4] * Math.random(), signSetter[5] * Math.random())
+                };
+            }
+        }
+
+        document.addEventListener("click", mouseClickHandler, false);
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+            if (food.locOne) {
+                if (food.locOne[0] < 0 || food.locOne[0] > canvas.clientWidth || food.locOne[1] < 0 || food.locOne[1] > canvas.clientHeight) {
+                    food.locOne = false;
+                } else {
+                    ctx.beginPath();
+                    ctx.fillStyle = foodColor;
+                    ctx.arc(food.locOne[0], food.locOne[1], foodSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.closePath();
+                    food.locOne[0] += food.dirOne[0] * foodSpeed;
+                    food.locOne[1] += food.dirOne[1] * foodSpeed;
+                }
+            }
+            if (food.locTwo) {
+                if (food.locTwo[0] < 0 || food.locTwo[0] > canvas.clientWidth || food.locTwo[1] < 0 || food.locTwo[1] > canvas.clientHeight) {
+                    food.locTwo = false;
+                } else {
+                    ctx.beginPath();
+                    ctx.fillStyle = foodColor;
+                    ctx.arc(food.locTwo[0], food.locTwo[1], foodSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.closePath();
+                    food.locTwo[0] += food.dirTwo[0] * foodSpeed;
+                    food.locTwo[1] += food.dirTwo[1] * foodSpeed;
+                }
+            }
+            if (food.locThree) {
+                if (food.locThree[0] < 0 || food.locThree[0] > canvas.clientWidth || food.locThree[1] < 0 || food.locThree[1] > canvas.clientHeight) {
+                    food.locThree = false;
+                } else {
+                    ctx.beginPath();
+                    ctx.fillStyle = foodColor;
+                    ctx.arc(food.locThree[0], food.locThree[1], foodSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.closePath();
+                    food.locThree[0] += food.dirThree[0] * foodSpeed;
+                    food.locThree[1] += food.dirThree[1] * foodSpeed;
+                }
+            }
+            if (!food.locOne && !food.locTwo && !food.locThree) {
+                food = false;
+            }
+            var j = Math.floor(fishArray.length * Math.random());
+            for (var i = 0; i < numberFish; i++) {
+                fishArray[i].draw();
+                fishArray[i].eat();
+                if ((ripples == false && i != j) || (ripples != false && i != ripples[3])) {
+                    fishArray[i].move();
+                }
+            }
+            if (ripples == false && Math.random() < 0.005) {
+                // somebody kissed the surface! That somebody stays still for 25 frames
+                ripples = [fishArray[j].xHead, fishArray[j].yHead, 1, j];
+            } else if (ripples[2] > 25) {
+                fishArray[ripples[3]].move();
+            } else if (ripples == false || ripples[3] != j) {
+                fishArray[j].move();
+            }
+            if (ripples[2] < 100) {
+                ctx.beginPath();
+                ctx.strokeStyle = "rgba(255,255,255,0.4)";
+                ctx.arc(ripples[0], ripples[1], ripples[2] / 2, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.closePath();
+                if (ripples[2] > 25) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+                    ctx.arc(ripples[0], ripples[1], (ripples[2] - 25) / 2, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+                if (ripples[2] > 50) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = "rgba(255,255,255,0.2)";
+                    ctx.arc(ripples[0], ripples[1], (ripples[2] - 50) / 2, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.closePath();
+                }
+                ripples[2]++;
+            } else {
+                ripples = false;
+            }
+            requestAnimationFrame(draw);
+        }
+        draw();
+
+    </script>
+
+</body>
+
+</html>
