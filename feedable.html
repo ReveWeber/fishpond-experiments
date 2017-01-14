@@ -10,18 +10,15 @@
             padding: 0;
             margin: 0;
         }
-        
         .container {
             width: 100%;
             height: 100%;
         }
-        
         canvas {
             background: radial-gradient(#94daff, #dbf3ff);
             display: block;
             margin: 0 auto;
         }
-        
         h3 {
             text-align: center;
         }
@@ -94,6 +91,7 @@
                         switch (Math.floor(30 * Math.random()) + 1) {
                             // they are still pretty twitchy - need past data
                             // or maybe just a second derivative
+                            // or to turn half as much twice as often?
                             case 1:
                                 this.dy -= standardTurn;
                                 break;
@@ -158,8 +156,9 @@
                                         }
                                     }
                                 }
+                                break;
                             default:
-                                true;
+                                break;
                         }
                         switch (Math.floor(25 * Math.random()) + 1) {
                             case 1:
@@ -188,9 +187,9 @@
                                 this.speed = 0.7 * this.speed;
                                 break;
                             default:
-                                true;
+                                break;
                         }
-                        if (this.dx != 0 && this.dy != 0) {
+                        if (this.dx !== 0 && this.dy !== 0) {
                             var newDeltas = normalize(this.dx, this.dy);
                             this.dx = this.speed * newDeltas[0];
                             this.dy = this.speed * newDeltas[1];
@@ -200,7 +199,6 @@
                     this.y += this.dy;
                 },
                 draw: function() {
-                    // could likely be improved with .save()/.restore() and transformations
                     var slope = this.dy / this.dx;
                     var x1 = this.x + fishLongRadius * slopeCosine(slope);
                     var x2 = this.x - fishLongRadius * slopeCosine(slope);
@@ -242,8 +240,6 @@
                     ctx.moveTo(xTail, yTail);
                     ctx.lineTo(x5, y5);
                     ctx.quadraticCurveTo(tailCtrX, tailCtrY, x6, y6);
-                    ctx.fillStyle = this.color;
-                    ctx.strokeStyle = this.color;
                     ctx.fill();
                     ctx.stroke();
                     ctx.closePath();
@@ -259,7 +255,7 @@
                         food.locThree = false;
                     }
                 }
-            }
+            };
         }
 
         function slopeSine(slope) {
@@ -301,11 +297,10 @@
         }
 
         function mouseMoveHandler(e) {
-            var mouseX = e.clientX - canvas.offsetLeft,
-                mouseY = e.clientY - canvas.offsetTop;
+            var mouseX = e.clientX - canvas.offsetLeft + window.scrollX,
+                mouseY = e.clientY - canvas.offsetTop + window.scrollY;
             relativeX = false;
             relativeY = false;
-            // note: x < y < z is not legal syntax
             if (0 <= mouseX && mouseX <= canvas.clientWidth && 0 <= mouseY && mouseY <= canvas.clientHeight) {
                 relativeX = mouseX;
                 relativeY = mouseY;
@@ -313,7 +308,7 @@
         }
         document.addEventListener("mousemove", mouseMoveHandler, false);
 
-        function mouseClickHandler(e) {
+        function mouseClickHandler() {
             if (relativeX !== false && relativeY !== false && food === false) {
                 var signSetter = [Math.random(), Math.random(), Math.random(), Math.random(), Math.random(), Math.random()];
                 for (i = 0; i < signSetter.length; i++) {
@@ -384,16 +379,16 @@
             for (var i = 0; i < numberFish; i++) {
                 fishArray[i].draw();
                 fishArray[i].eat();
-                if ((ripples == false && i != j) || (ripples != false && i != ripples[3])) {
+                if ((ripples === false && i !== j) || (ripples !== false && i !== ripples[3])) {
                     fishArray[i].move();
                 }
             }
-            if (ripples == false && Math.random() < 0.005) {
+            if (ripples === false && Math.random() < 0.005) {
                 // somebody kissed the surface! That somebody stays still for 25 frames
                 ripples = [fishArray[j].xHead, fishArray[j].yHead, 1, j];
             } else if (ripples[2] > 25) {
                 fishArray[ripples[3]].move();
-            } else if (ripples == false || ripples[3] != j) {
+            } else if (ripples === false || ripples[3] !== j) {
                 fishArray[j].move();
             }
             if (ripples[2] < 100) {
